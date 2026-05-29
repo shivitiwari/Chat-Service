@@ -1,0 +1,364 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <title>Chat Service — WebSocket Test Client</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+
+        body {
+            font-family: 'Segoe UI', sans-serif;
+            background: #1e1e2e;
+            color: #cdd6f4;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 24px;
+        }
+
+        h1 { font-size: 1.4rem; margin-bottom: 20px; color: #89b4fa; }
+
+        /* ── Connection Panel ─────────────────────────── */
+        #connect-panel {
+            background: #313244;
+            border-radius: 10px;
+            padding: 20px;
+            width: 100%;
+            max-width: 700px;
+            margin-bottom: 16px;
+        }
+
+        #connect-panel h2 { font-size: 0.85rem; color: #a6adc8; margin-bottom: 12px; text-transform: uppercase; letter-spacing: 1px; }
+
+        .row { display: flex; gap: 10px; align-items: center; }
+
+        input[type="text"] {
+            flex: 1;
+            padding: 9px 14px;
+            border-radius: 8px;
+            border: 1px solid #45475a;
+            background: #1e1e2e;
+            color: #cdd6f4;
+            font-size: 0.9rem;
+            outline: none;
+        }
+
+        input[type="text"]:focus { border-color: #89b4fa; }
+
+        button {
+            padding: 9px 18px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 0.85rem;
+            font-weight: 600;
+            transition: opacity 0.2s;
+        }
+        button:hover { opacity: 0.85; }
+        button:disabled { opacity: 0.4; cursor: not-allowed; }
+
+        #btn-connect    { background: #a6e3a1; color: #1e1e2e; }
+        #btn-disconnect { background: #f38ba8; color: #1e1e2e; }
+
+        /* ── Status ───────────────────────────────────── */
+        #status {
+            font-size: 0.8rem;
+            margin-top: 10px;
+            padding: 6px 12px;
+            border-radius: 6px;
+            background: #45475a;
+            display: inline-block;
+        }
+        #status.connected    { background: #a6e3a1; color: #1e1e2e; }
+        #status.disconnected { background: #f38ba8; color: #1e1e2e; }
+
+        /* ── Main Area ────────────────────────────────── */
+        #main {
+            display: flex;
+            gap: 16px;
+            width: 100%;
+            max-width: 700px;
+            flex: 1;
+            min-height: 0;
+        }
+
+        /* ── Chat Box ─────────────────────────────────── */
+        #chat-panel {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            background: #313244;
+            border-radius: 10px;
+            padding: 16px;
+            gap: 10px;
+        }
+
+        #chat-panel h2 { font-size: 0.85rem; color: #a6adc8; text-transform: uppercase; letter-spacing: 1px; }
+
+        #messages {
+            flex: 1;
+            overflow-y: auto;
+            background: #1e1e2e;
+            border-radius: 8px;
+            padding: 12px;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            min-height: 200px;
+        }
+
+        .msg {
+            padding: 8px 12px;
+            border-radius: 8px;
+            font-size: 0.88rem;
+            max-width: 90%;
+            word-break: break-word;
+        }
+        .msg.mine    { background: #89b4fa; color: #1e1e2e; align-self: flex-end; }
+        .msg.others  { background: #45475a; color: #cdd6f4; align-self: flex-start; }
+        .msg.system  { background: #313244; color: #a6e3a1; align-self: center; font-style: italic; font-size: 0.8rem; border: 1px solid #45475a; }
+
+        .msg .meta   { font-size: 0.72rem; opacity: 0.7; margin-top: 3px; }
+
+        .msg-input-row { display: flex; gap: 8px; }
+
+        #btn-send-public  { background: #89b4fa; color: #1e1e2e; }
+
+        /* ── Private Message Panel ────────────────────── */
+        #private-panel {
+            width: 220px;
+            background: #313244;
+            border-radius: 10px;
+            padding: 16px;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        #private-panel h2 { font-size: 0.85rem; color: #a6adc8; text-transform: uppercase; letter-spacing: 1px; }
+
+        #private-messages {
+            flex: 1;
+            overflow-y: auto;
+            background: #1e1e2e;
+            border-radius: 8px;
+            padding: 10px;
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+            min-height: 100px;
+            font-size: 0.82rem;
+        }
+
+        #btn-send-private { background: #cba6f7; color: #1e1e2e; width: 100%; }
+
+        label { font-size: 0.78rem; color: #a6adc8; }
+    </style>
+</head>
+<body>
+
+<h1>🗨️ Chat Service — WebSocket Test Client</h1>
+
+<!-- ── Connect Panel ───────────────────────────────────── -->
+<div id="connect-panel">
+    <h2>Connection</h2>
+    <div class="row">
+        <input type="text" id="username"    placeholder="Your username" />
+        <input type="text" id="server-url"  value="http://localhost:8080/ws" style="max-width:220px"/>
+        <button id="btn-connect">Connect</button>
+        <button id="btn-disconnect" disabled>Disconnect</button>
+    </div>
+    <div id="status" class="disconnected">● Disconnected</div>
+</div>
+
+<!-- ── Main ───────────────────────────────────────────── -->
+<div id="main">
+
+    <!-- Public Chat -->
+    <div id="chat-panel">
+        <h2>📢 Public Room — /topic/public</h2>
+        <div id="messages"></div>
+        <div class="msg-input-row">
+            <input type="text" id="msg-input" placeholder="Type a public message…" disabled />
+            <button id="btn-send-public" disabled>Send</button>
+        </div>
+    </div>
+
+    <!-- Private DM -->
+    <div id="private-panel">
+        <h2>🔒 Private DM</h2>
+        <div id="private-messages"></div>
+
+        <label>Recipient ID</label>
+        <input type="text" id="recipient-id" placeholder="e.g. john" disabled />
+
+        <label>Message</label>
+        <input type="text" id="private-msg-input" placeholder="Private message…" disabled />
+
+        <button id="btn-send-private" disabled>Send DM</button>
+    </div>
+</div>
+
+<!-- ── SockJS + STOMP (CDN) ───────────────────────────── -->
+<script src="https://cdn.jsdelivr.net/npm/sockjs-client@1/dist/sockjs.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/stompjs@2.3.3/lib/stomp.min.js"></script>
+
+<script>
+    let stompClient = null;
+    let username    = '';
+
+    // ── DOM refs ──────────────────────────────────────────
+    const btnConnect       = document.getElementById('btn-connect');
+    const btnDisconnect    = document.getElementById('btn-disconnect');
+    const btnSendPublic    = document.getElementById('btn-send-public');
+    const btnSendPrivate   = document.getElementById('btn-send-private');
+    const statusEl         = document.getElementById('status');
+    const messagesEl       = document.getElementById('messages');
+    const privateMessagesEl= document.getElementById('private-messages');
+    const msgInput         = document.getElementById('msg-input');
+    const privateMsgInput  = document.getElementById('private-msg-input');
+    const recipientInput   = document.getElementById('recipient-id');
+    const usernameInput    = document.getElementById('username');
+    const serverUrlInput   = document.getElementById('server-url');
+
+    // ── Connect ───────────────────────────────────────────
+    btnConnect.onclick = () => {
+        username = usernameInput.value.trim();
+        if (!username) { alert('Enter a username first!'); return; }
+
+        const socket = new SockJS(serverUrlInput.value.trim());
+        stompClient  = Stomp.over(socket);
+        stompClient.debug = null; // silence debug logs
+
+        stompClient.connect({}, () => {
+            setConnected(true);
+
+            // 1️⃣  Subscribe to public room
+            stompClient.subscribe('/topic/public', (msg) => {
+                const body = JSON.parse(msg.body);
+                renderPublicMessage(body);
+            });
+
+            // 2️⃣  Subscribe to private queue for this user
+            stompClient.subscribe('/user/queue/private', (msg) => {
+                const body = JSON.parse(msg.body);
+                renderPrivateMessage(body);
+            });
+
+            // 3️⃣  Announce join
+            stompClient.send('/app/chat.addUser', {}, JSON.stringify({
+                senderId  : username,
+                recipientId: '',
+                content   : '',
+                type      : 'JOIN'
+            }));
+
+        }, (error) => {
+            console.error('STOMP error', error);
+            setConnected(false);
+        });
+    };
+
+    // ── Disconnect ────────────────────────────────────────
+    btnDisconnect.onclick = () => {
+        if (stompClient) stompClient.disconnect(() => setConnected(false));
+    };
+
+    // ── Send public message ───────────────────────────────
+    btnSendPublic.onclick = sendPublic;
+    msgInput.addEventListener('keydown', e => { if (e.key === 'Enter') sendPublic(); });
+
+    function sendPublic() {
+        const content = msgInput.value.trim();
+        if (!content || !stompClient) return;
+
+        stompClient.send('/app/chat.sendMessage', {}, JSON.stringify({
+            senderId   : username,
+            recipientId: '',
+            content    : content,
+            type       : 'CHAT'
+        }));
+        msgInput.value = '';
+    }
+
+    // ── Send private message ──────────────────────────────
+    btnSendPrivate.onclick = sendPrivate;
+    privateMsgInput.addEventListener('keydown', e => { if (e.key === 'Enter') sendPrivate(); });
+
+    function sendPrivate() {
+        const content   = privateMsgInput.value.trim();
+        const recipient = recipientInput.value.trim();
+        if (!content || !recipient || !stompClient) return;
+
+        stompClient.send('/app/chat.privateMessage', {}, JSON.stringify({
+            senderId   : username,
+            recipientId: recipient,
+            content    : content,
+            type       : 'CHAT'
+        }));
+
+        // Show it on sender side too
+        renderPrivateMessage({ senderId: username, recipientId: recipient, content, type: 'CHAT' }, true);
+        privateMsgInput.value = '';
+    }
+
+    // ── Render helpers ────────────────────────────────────
+    function renderPublicMessage(msg) {
+        const div = document.createElement('div');
+
+        if (msg.type === 'JOIN' || msg.type === 'LEAVE') {
+            div.className = 'msg system';
+            div.textContent = msg.content || `${msg.senderId} ${msg.type === 'JOIN' ? 'joined' : 'left'}`;
+        } else {
+            div.className = 'msg ' + (msg.senderId === username ? 'mine' : 'others');
+            div.innerHTML = `
+                <strong>${msg.senderId}</strong><br/>
+                ${escHtml(msg.content)}
+                <div class="meta">${formatTime(msg.timestamp)}</div>
+            `;
+        }
+
+        messagesEl.appendChild(div);
+        messagesEl.scrollTop = messagesEl.scrollHeight;
+    }
+
+    function renderPrivateMessage(msg, isSent = false) {
+        const div = document.createElement('div');
+        div.className = 'msg ' + (isSent ? 'mine' : 'others');
+        div.innerHTML = `
+            <strong>${isSent ? 'You → ' + msg.recipientId : msg.senderId}</strong><br/>
+            ${escHtml(msg.content)}
+            <div class="meta">${formatTime(msg.timestamp)}</div>
+        `;
+        privateMessagesEl.appendChild(div);
+        privateMessagesEl.scrollTop = privateMessagesEl.scrollHeight;
+    }
+
+    // ── UI state helpers ──────────────────────────────────
+    function setConnected(connected) {
+        btnConnect.disabled    =  connected;
+        btnDisconnect.disabled = !connected;
+        btnSendPublic.disabled = !connected;
+        btnSendPrivate.disabled= !connected;
+        msgInput.disabled      = !connected;
+        privateMsgInput.disabled=!connected;
+        recipientInput.disabled= !connected;
+
+        statusEl.textContent = connected ? '● Connected as ' + username : '● Disconnected';
+        statusEl.className   = connected ? 'connected' : 'disconnected';
+    }
+
+    function formatTime(ts) {
+        if (!ts) return new Date().toLocaleTimeString();
+        return new Date(ts).toLocaleTimeString();
+    }
+
+    function escHtml(str = '') {
+        return str.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+    }
+</script>
+
+</body>
+</html>
+
