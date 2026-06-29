@@ -1,364 +1,735 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8" />
-    <title>Chat Service — WebSocket Test Client</title>
+    <meta charset="UTF-8"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+    <title>Chat Service</title>
     <style>
-        * { box-sizing: border-box; margin: 0; padding: 0; }
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+        :root {
+            --bg-dark:    #0f0f1a;
+            --bg-main:    #1a1a2e;
+            --bg-card:    #16213e;
+            --bg-input:   #0f3460;
+            --accent:     #e94560;
+            --accent2:    #53a8b6;
+            --accent3:    #79c99e;
+            --text:       #e0e0e0;
+            --text-muted: #8892a4;
+            --border:     #2a2a4a;
+            --success:    #4ade80;
+            --warning:    #facc15;
+            --danger:     #f87171;
+            --purple:     #a78bfa;
+            --radius:     12px;
+        }
 
         body {
-            font-family: 'Segoe UI', sans-serif;
-            background: #1e1e2e;
-            color: #cdd6f4;
+            font-family: 'Segoe UI', -apple-system, BlinkMacSystemFont, sans-serif;
+            background: var(--bg-dark);
+            color: var(--text);
             height: 100vh;
+            overflow: hidden;
+        }
+
+        /* ═══════════════════════════════════════════════════
+           LOGIN SCREEN
+           ═══════════════════════════════════════════════════ */
+        #login-screen {
             display: flex;
-            flex-direction: column;
             align-items: center;
-            padding: 24px;
+            justify-content: center;
+            height: 100vh;
+            background: linear-gradient(135deg, #0f0f1a 0%, #1a1a2e 50%, #16213e 100%);
+        }
+        .login-box {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 20px;
+            padding: 48px 40px;
+            width: 420px;
+            text-align: center;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.5);
+        }
+        .login-box .logo { font-size: 3rem; margin-bottom: 8px; }
+        .login-box h1 { font-size: 1.6rem; margin-bottom: 4px; color: var(--accent2); }
+        .login-box p { font-size: 0.85rem; color: var(--text-muted); margin-bottom: 28px; }
+        .login-box input {
+            width: 100%; padding: 14px 18px; border-radius: 10px;
+            border: 1px solid var(--border); background: var(--bg-main);
+            color: var(--text); font-size: 1rem; outline: none;
+            margin-bottom: 16px; transition: border-color 0.3s;
+        }
+        .login-box input:focus { border-color: var(--accent2); }
+        .login-box .btn-login {
+            width: 100%; padding: 14px; border: none; border-radius: 10px;
+            background: linear-gradient(135deg, var(--accent2), var(--accent3));
+            color: #fff; font-size: 1rem; font-weight: 700; cursor: pointer;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+        .login-box .btn-login:hover { transform: translateY(-2px); box-shadow: 0 8px 25px rgba(83,168,182,0.3); }
+        .login-box .server-url { margin-top: 16px; font-size: 0.78rem; color: var(--text-muted); }
+        .login-box .server-url input { margin-top: 6px; font-size: 0.82rem; padding: 10px 14px; }
+
+        /* ═══════════════════════════════════════════════════
+           CHAT APP LAYOUT
+           ═══════════════════════════════════════════════════ */
+        #chat-app {
+            display: none; height: 100vh;
+            grid-template-columns: 260px 1fr 250px;
+            grid-template-rows: 54px 1fr;
+            grid-template-areas: "header header header" "sidebar chat users";
         }
 
-        h1 { font-size: 1.4rem; margin-bottom: 20px; color: #89b4fa; }
-
-        /* ── Connection Panel ─────────────────────────── */
-        #connect-panel {
-            background: #313244;
-            border-radius: 10px;
-            padding: 20px;
-            width: 100%;
-            max-width: 700px;
-            margin-bottom: 16px;
+        /* ── Top Bar ──────────────────────────────── */
+        #top-bar {
+            grid-area: header; background: var(--bg-card);
+            border-bottom: 1px solid var(--border);
+            display: flex; align-items: center; justify-content: space-between; padding: 0 20px;
         }
-
-        #connect-panel h2 { font-size: 0.85rem; color: #a6adc8; margin-bottom: 12px; text-transform: uppercase; letter-spacing: 1px; }
-
-        .row { display: flex; gap: 10px; align-items: center; }
-
-        input[type="text"] {
-            flex: 1;
-            padding: 9px 14px;
-            border-radius: 8px;
-            border: 1px solid #45475a;
-            background: #1e1e2e;
-            color: #cdd6f4;
-            font-size: 0.9rem;
-            outline: none;
+        #top-bar .brand { display: flex; align-items: center; gap: 10px; font-weight: 700; font-size: 1.05rem; color: var(--accent2); }
+        #top-bar .brand span { font-size: 1.3rem; }
+        #top-bar .user-info { display: flex; align-items: center; gap: 12px; font-size: 0.85rem; color: var(--text-muted); }
+        #top-bar .user-info .dot { width: 8px; height: 8px; background: var(--success); border-radius: 50%; }
+        .btn-sm {
+            padding: 6px 14px; border: 1px solid var(--border); border-radius: 8px;
+            background: transparent; color: var(--text-muted); font-size: 0.78rem; cursor: pointer; transition: all 0.2s;
         }
+        .btn-sm:hover { background: var(--accent); color: #fff; border-color: var(--accent); }
 
-        input[type="text"]:focus { border-color: #89b4fa; }
-
-        button {
-            padding: 9px 18px;
-            border: none;
-            border-radius: 8px;
-            cursor: pointer;
-            font-size: 0.85rem;
-            font-weight: 600;
+        /* ── Left Sidebar (Rooms) ─────────────────── */
+        #left-sidebar {
+            grid-area: sidebar; background: var(--bg-main);
+            border-right: 1px solid var(--border); display: flex; flex-direction: column; overflow: hidden;
+        }
+        .sidebar-header {
+            padding: 14px 16px; border-bottom: 1px solid var(--border);
+            font-size: 0.78rem; text-transform: uppercase; letter-spacing: 1.5px;
+            color: var(--text-muted); font-weight: 600;
+        }
+        .room-list { flex: 1; overflow-y: auto; padding: 6px; }
+        .room-item {
+            display: flex; align-items: center; gap: 10px; padding: 9px 12px;
+            border-radius: 10px; cursor: pointer; font-size: 0.88rem;
+            transition: background 0.2s; color: var(--text-muted);
+        }
+        .room-item:hover { background: var(--bg-card); }
+        .room-item.active { background: var(--bg-input); color: var(--text); font-weight: 600; }
+        .room-item .room-icon { font-size: 1rem; }
+        .room-item .room-name { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .room-item .unread {
+            background: var(--accent); color: #fff; font-size: 0.68rem;
+            padding: 1px 6px; border-radius: 10px; font-weight: 700;
+        }
+        .room-item .leave-x {
+            font-size: 0.7rem; cursor: pointer; color: var(--danger); opacity: 0;
             transition: opacity 0.2s;
         }
-        button:hover { opacity: 0.85; }
-        button:disabled { opacity: 0.4; cursor: not-allowed; }
+        .room-item:hover .leave-x { opacity: 1; }
 
-        #btn-connect    { background: #a6e3a1; color: #1e1e2e; }
-        #btn-disconnect { background: #f38ba8; color: #1e1e2e; }
-
-        /* ── Status ───────────────────────────────────── */
-        #status {
-            font-size: 0.8rem;
-            margin-top: 10px;
-            padding: 6px 12px;
-            border-radius: 6px;
-            background: #45475a;
-            display: inline-block;
+        .room-actions { padding: 10px 12px; border-top: 1px solid var(--border); }
+        .room-actions input {
+            width: 100%; padding: 8px 10px; border-radius: 8px;
+            border: 1px solid var(--border); background: var(--bg-card);
+            color: var(--text); font-size: 0.8rem; outline: none; margin-bottom: 6px;
         }
-        #status.connected    { background: #a6e3a1; color: #1e1e2e; }
-        #status.disconnected { background: #f38ba8; color: #1e1e2e; }
-
-        /* ── Main Area ────────────────────────────────── */
-        #main {
-            display: flex;
-            gap: 16px;
-            width: 100%;
-            max-width: 700px;
-            flex: 1;
-            min-height: 0;
+        .room-actions input:focus { border-color: var(--accent2); }
+        .room-actions .btn-row { display: flex; gap: 6px; }
+        .btn-room {
+            flex: 1; padding: 7px; border: none; border-radius: 8px;
+            font-size: 0.76rem; font-weight: 600; cursor: pointer; transition: opacity 0.2s;
         }
+        .btn-room:hover { opacity: 0.85; }
+        .btn-join  { background: var(--accent3); color: #0f0f1a; }
+        .btn-create { background: var(--accent2); color: #0f0f1a; }
 
-        /* ── Chat Box ─────────────────────────────────── */
-        #chat-panel {
-            flex: 1;
-            display: flex;
-            flex-direction: column;
-            background: #313244;
-            border-radius: 10px;
-            padding: 16px;
-            gap: 10px;
+        /* ── Center Chat Area ─────────────────────── */
+        #chat-center {
+            grid-area: chat; display: flex; flex-direction: column;
+            background: var(--bg-dark); overflow: hidden;
+        }
+        .chat-header {
+            padding: 12px 20px; border-bottom: 1px solid var(--border);
+            background: var(--bg-main); display: flex; align-items: center; justify-content: space-between;
+        }
+        .chat-header .room-title { font-weight: 700; font-size: 1rem; }
+        .chat-header .room-desc { font-size: 0.76rem; color: var(--text-muted); }
+        .chat-header .members-badge {
+            font-size: 0.73rem; padding: 4px 10px; border-radius: 12px;
+            background: var(--bg-card); color: var(--text-muted);
         }
 
-        #chat-panel h2 { font-size: 0.85rem; color: #a6adc8; text-transform: uppercase; letter-spacing: 1px; }
+        .messages-container {
+            flex: 1; overflow-y: auto; padding: 14px 20px;
+            display: flex; flex-direction: column; gap: 6px;
+        }
+        .messages-container::-webkit-scrollbar { width: 5px; }
+        .messages-container::-webkit-scrollbar-track { background: transparent; }
+        .messages-container::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
 
-        #messages {
-            flex: 1;
-            overflow-y: auto;
-            background: #1e1e2e;
-            border-radius: 8px;
-            padding: 12px;
-            display: flex;
-            flex-direction: column;
-            gap: 8px;
-            min-height: 200px;
+        .msg-bubble {
+            max-width: 65%; padding: 10px 14px; border-radius: 14px;
+            font-size: 0.87rem; line-height: 1.4; word-break: break-word;
+        }
+        .msg-bubble.mine {
+            background: linear-gradient(135deg, #0f3460, #16213e);
+            border: 1px solid var(--accent2); align-self: flex-end; border-bottom-right-radius: 4px;
+        }
+        .msg-bubble.others {
+            background: var(--bg-card); border: 1px solid var(--border);
+            align-self: flex-start; border-bottom-left-radius: 4px;
+        }
+        .msg-bubble .sender { font-size: 0.73rem; font-weight: 700; color: var(--accent2); margin-bottom: 2px; }
+        .msg-bubble.mine .sender { color: var(--accent3); }
+        .msg-bubble .time { font-size: 0.66rem; color: var(--text-muted); margin-top: 3px; text-align: right; }
+        .msg-system {
+            align-self: center; font-size: 0.76rem; color: var(--text-muted);
+            font-style: italic; padding: 5px 14px; background: var(--bg-main);
+            border-radius: 20px; border: 1px solid var(--border);
         }
 
-        .msg {
-            padding: 8px 12px;
-            border-radius: 8px;
-            font-size: 0.88rem;
-            max-width: 90%;
-            word-break: break-word;
+        .chat-input-area {
+            padding: 12px 20px; border-top: 1px solid var(--border);
+            background: var(--bg-main); display: flex; gap: 10px; align-items: center;
         }
-        .msg.mine    { background: #89b4fa; color: #1e1e2e; align-self: flex-end; }
-        .msg.others  { background: #45475a; color: #cdd6f4; align-self: flex-start; }
-        .msg.system  { background: #313244; color: #a6e3a1; align-self: center; font-style: italic; font-size: 0.8rem; border: 1px solid #45475a; }
-
-        .msg .meta   { font-size: 0.72rem; opacity: 0.7; margin-top: 3px; }
-
-        .msg-input-row { display: flex; gap: 8px; }
-
-        #btn-send-public  { background: #89b4fa; color: #1e1e2e; }
-
-        /* ── Private Message Panel ────────────────────── */
-        #private-panel {
-            width: 220px;
-            background: #313244;
-            border-radius: 10px;
-            padding: 16px;
-            display: flex;
-            flex-direction: column;
-            gap: 10px;
+        .chat-input-area input {
+            flex: 1; padding: 11px 14px; border-radius: 10px;
+            border: 1px solid var(--border); background: var(--bg-card);
+            color: var(--text); font-size: 0.88rem; outline: none;
         }
-
-        #private-panel h2 { font-size: 0.85rem; color: #a6adc8; text-transform: uppercase; letter-spacing: 1px; }
-
-        #private-messages {
-            flex: 1;
-            overflow-y: auto;
-            background: #1e1e2e;
-            border-radius: 8px;
-            padding: 10px;
-            display: flex;
-            flex-direction: column;
-            gap: 6px;
-            min-height: 100px;
-            font-size: 0.82rem;
+        .chat-input-area input:focus { border-color: var(--accent2); }
+        .btn-send {
+            padding: 11px 18px; border: none; border-radius: 10px;
+            background: linear-gradient(135deg, var(--accent2), var(--accent3));
+            color: #fff; font-weight: 700; font-size: 0.85rem; cursor: pointer;
+            transition: transform 0.2s; white-space: nowrap;
         }
+        .btn-send:hover { transform: scale(1.03); }
 
-        #btn-send-private { background: #cba6f7; color: #1e1e2e; width: 100%; }
+        /* ── Right Sidebar (Online Users + DM) ────── */
+        #right-sidebar {
+            grid-area: users; background: var(--bg-main);
+            border-left: 1px solid var(--border); display: flex; flex-direction: column; overflow: hidden;
+        }
+        .users-header {
+            padding: 14px 16px; border-bottom: 1px solid var(--border);
+            font-size: 0.78rem; text-transform: uppercase; letter-spacing: 1.5px;
+            color: var(--text-muted); font-weight: 600;
+            display: flex; align-items: center; justify-content: space-between;
+        }
+        .users-header .count {
+            background: var(--success); color: #0f0f1a; padding: 2px 7px;
+            border-radius: 10px; font-size: 0.7rem; font-weight: 700;
+        }
+        .online-list { flex: 1; overflow-y: auto; padding: 6px; }
+        .user-item {
+            display: flex; align-items: center; gap: 9px; padding: 7px 10px;
+            border-radius: 8px; font-size: 0.83rem; cursor: pointer; transition: background 0.2s;
+        }
+        .user-item:hover { background: var(--bg-card); }
+        .user-item.is-you { color: var(--accent3); font-weight: 600; }
+        .user-item .user-dot { width: 7px; height: 7px; background: var(--success); border-radius: 50%; flex-shrink: 0; }
 
-        label { font-size: 0.78rem; color: #a6adc8; }
+        /* DM section */
+        .dm-section { border-top: 1px solid var(--border); padding: 10px 12px; }
+        .dm-section .dm-title {
+            font-size: 0.78rem; text-transform: uppercase; letter-spacing: 1.5px;
+            color: var(--text-muted); font-weight: 600; margin-bottom: 6px;
+        }
+        .dm-messages {
+            background: var(--bg-card); border-radius: 8px; padding: 6px 8px;
+            max-height: 130px; overflow-y: auto; margin-bottom: 6px;
+            font-size: 0.8rem; min-height: 40px;
+        }
+        .dm-msg { padding: 4px 0; border-bottom: 1px solid var(--border); }
+        .dm-msg:last-child { border-bottom: none; }
+        .dm-msg .dm-sender { font-weight: 600; color: var(--purple); font-size: 0.72rem; }
+        .dm-msg.dm-sent .dm-sender { color: var(--accent3); }
+        .dm-section input {
+            width: 100%; padding: 7px 10px; border-radius: 8px;
+            border: 1px solid var(--border); background: var(--bg-card);
+            color: var(--text); font-size: 0.8rem; outline: none; margin-bottom: 5px;
+        }
+        .dm-section input:focus { border-color: var(--purple); }
+        .btn-dm {
+            width: 100%; padding: 7px; border: none; border-radius: 8px;
+            background: var(--purple); color: #fff; font-size: 0.76rem;
+            font-weight: 600; cursor: pointer;
+        }
+        .btn-dm:hover { opacity: 0.85; }
+
+        /* ═══════════════════════════════════════════════════
+           TOAST
+           ═══════════════════════════════════════════════════ */
+        .toast {
+            position: fixed; top: 16px; right: 16px;
+            padding: 10px 18px; border-radius: 10px; font-size: 0.83rem;
+            font-weight: 600; color: #fff; z-index: 9999;
+            animation: slideIn 0.3s ease, fadeOut 0.5s 2.5s ease forwards;
+            box-shadow: 0 8px 25px rgba(0,0,0,0.4);
+        }
+        .toast.success { background: var(--success); color: #0f0f1a; }
+        .toast.error   { background: var(--danger); }
+        .toast.info    { background: var(--accent2); }
+        @keyframes slideIn { from { transform: translateX(100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+        @keyframes fadeOut  { to { opacity: 0; transform: translateY(-20px); } }
+
+        .loading-dots::after { content: ''; animation: dots 1.5s infinite; }
+        @keyframes dots { 0%{content:''} 25%{content:'.'} 50%{content:'..'} 75%{content:'...'} }
+
+        /* ═══════════════════════════════════════════════════
+           RESPONSIVE
+           ═══════════════════════════════════════════════════ */
+        @media (max-width: 900px) {
+            #chat-app { grid-template-columns: 1fr; grid-template-rows: 50px 1fr; grid-template-areas: "header" "chat"; }
+            #left-sidebar, #right-sidebar { display: none; }
+        }
     </style>
 </head>
 <body>
 
-<h1>🗨️ Chat Service — WebSocket Test Client</h1>
-
-<!-- ── Connect Panel ───────────────────────────────────── -->
-<div id="connect-panel">
-    <h2>Connection</h2>
-    <div class="row">
-        <input type="text" id="username"    placeholder="Your username" />
-        <input type="text" id="server-url"  value="http://localhost:8080/ws" style="max-width:220px"/>
-        <button id="btn-connect">Connect</button>
-        <button id="btn-disconnect" disabled>Disconnect</button>
+<!-- ═══════════════════════════════════════════════════════
+     LOGIN SCREEN
+     ═══════════════════════════════════════════════════════ -->
+<div id="login-screen">
+    <div class="login-box">
+        <div class="logo">💬</div>
+        <h1>Chat Service</h1>
+        <p>Real-time messaging with WebSocket, Kafka &amp; MongoDB</p>
+        <input type="text" id="login-username" placeholder="Enter your username" autofocus/>
+        <button class="btn-login" id="btn-login">Connect &amp; Chat</button>
+        <div class="server-url">
+            Server URL
+            <input type="text" id="login-server-url" value="http://localhost:8080/ws"/>
+        </div>
     </div>
-    <div id="status" class="disconnected">● Disconnected</div>
 </div>
 
-<!-- ── Main ───────────────────────────────────────────── -->
-<div id="main">
+<!-- ═══════════════════════════════════════════════════════
+     CHAT APPLICATION
+     ═══════════════════════════════════════════════════════ -->
+<div id="chat-app">
 
-    <!-- Public Chat -->
-    <div id="chat-panel">
-        <h2>📢 Public Room — /topic/public</h2>
-        <div id="messages"></div>
-        <div class="msg-input-row">
-            <input type="text" id="msg-input" placeholder="Type a public message…" disabled />
-            <button id="btn-send-public" disabled>Send</button>
+    <!-- Top Bar -->
+    <div id="top-bar">
+        <div class="brand"><span>💬</span> Chat Service</div>
+        <div class="user-info">
+            <span class="dot"></span>
+            <span id="display-username">—</span>
+            <button class="btn-sm" id="btn-disconnect">Disconnect</button>
         </div>
     </div>
 
-    <!-- Private DM -->
-    <div id="private-panel">
-        <h2>🔒 Private DM</h2>
-        <div id="private-messages"></div>
-
-        <label>Recipient ID</label>
-        <input type="text" id="recipient-id" placeholder="e.g. john" disabled />
-
-        <label>Message</label>
-        <input type="text" id="private-msg-input" placeholder="Private message…" disabled />
-
-        <button id="btn-send-private" disabled>Send DM</button>
+    <!-- Left Sidebar: Rooms -->
+    <div id="left-sidebar">
+        <div class="sidebar-header">💬 Channels</div>
+        <div class="room-list" id="room-list"></div>
+        <div class="room-actions">
+            <input type="text" id="new-room-input" placeholder="Room name (e.g. general)"/>
+            <div class="btn-row">
+                <button class="btn-room btn-join" id="btn-join-room">Join</button>
+                <button class="btn-room btn-create" id="btn-create-room">Create</button>
+            </div>
+        </div>
     </div>
+
+    <!-- Center: Chat Area -->
+    <div id="chat-center">
+        <div class="chat-header">
+            <div>
+                <div class="room-title" id="chat-room-title">📢 #public</div>
+                <div class="room-desc" id="chat-room-desc">Public chat room — everyone can see messages</div>
+            </div>
+            <div class="members-badge" id="chat-members-badge">0 online</div>
+        </div>
+        <div class="messages-container" id="messages-container"></div>
+        <div class="chat-input-area">
+            <input type="text" id="chat-input" placeholder="Type a message…" autocomplete="off"/>
+            <button class="btn-send" id="btn-send">Send ➤</button>
+        </div>
+    </div>
+
+    <!-- Right Sidebar: Online Users + DM -->
+    <div id="right-sidebar">
+        <div class="users-header">
+            🟢 Online <span class="count" id="online-count">0</span>
+        </div>
+        <div class="online-list" id="online-list">
+            <div style="padding:16px;text-align:center;color:var(--text-muted);font-size:0.8rem;">
+                Connecting<span class="loading-dots"></span>
+            </div>
+        </div>
+        <div class="dm-section">
+            <div class="dm-title">🔒 Direct Message</div>
+            <div class="dm-messages" id="dm-messages"></div>
+            <input type="text" id="dm-recipient" placeholder="Recipient username"/>
+            <input type="text" id="dm-input" placeholder="Private message…"/>
+            <button class="btn-dm" id="btn-send-dm">Send DM</button>
+        </div>
+    </div>
+
 </div>
 
-<!-- ── SockJS + STOMP (CDN) ───────────────────────────── -->
+<!-- SockJS + STOMP (CDN) -->
 <script src="https://cdn.jsdelivr.net/npm/sockjs-client@1/dist/sockjs.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/stompjs@2.3.3/lib/stomp.min.js"></script>
 
 <script>
-    let stompClient = null;
-    let username    = '';
+// ══════════════════════════════════════════════════════════
+//  STATE
+// ══════════════════════════════════════════════════════════
+let stompClient   = null;
+let username       = '';
+let activeRoom     = 'public';
+let joinedRooms    = new Set(['public']);
+let roomMessages   = {};       // { roomId: [msg, …] }
+let roomSubs       = {};       // { roomId: stompSubscription }
+let roomMemberSubs = {};       // { roomId: stompSubscription }
+let roomMembers    = {};       // { roomId: Set }
+let onlineUsers    = [];
 
-    // ── DOM refs ──────────────────────────────────────────
-    const btnConnect       = document.getElementById('btn-connect');
-    const btnDisconnect    = document.getElementById('btn-disconnect');
-    const btnSendPublic    = document.getElementById('btn-send-public');
-    const btnSendPrivate   = document.getElementById('btn-send-private');
-    const statusEl         = document.getElementById('status');
-    const messagesEl       = document.getElementById('messages');
-    const privateMessagesEl= document.getElementById('private-messages');
-    const msgInput         = document.getElementById('msg-input');
-    const privateMsgInput  = document.getElementById('private-msg-input');
-    const recipientInput   = document.getElementById('recipient-id');
-    const usernameInput    = document.getElementById('username');
-    const serverUrlInput   = document.getElementById('server-url');
+// ══════════════════════════════════════════════════════════
+//  DOM REFS
+// ══════════════════════════════════════════════════════════
+const loginScreen     = document.getElementById('login-screen');
+const chatApp         = document.getElementById('chat-app');
+const loginUsername    = document.getElementById('login-username');
+const loginServerUrl  = document.getElementById('login-server-url');
+const btnLogin        = document.getElementById('btn-login');
+const btnDisconnect   = document.getElementById('btn-disconnect');
+const displayUsername  = document.getElementById('display-username');
+const roomListEl      = document.getElementById('room-list');
+const newRoomInput    = document.getElementById('new-room-input');
+const btnJoinRoom     = document.getElementById('btn-join-room');
+const btnCreateRoom   = document.getElementById('btn-create-room');
+const chatRoomTitle   = document.getElementById('chat-room-title');
+const chatRoomDesc    = document.getElementById('chat-room-desc');
+const membersBadge    = document.getElementById('chat-members-badge');
+const messagesContainer = document.getElementById('messages-container');
+const chatInput       = document.getElementById('chat-input');
+const btnSend         = document.getElementById('btn-send');
+const onlineListEl    = document.getElementById('online-list');
+const onlineCountEl   = document.getElementById('online-count');
+const dmMessagesEl    = document.getElementById('dm-messages');
+const dmRecipientEl   = document.getElementById('dm-recipient');
+const dmInputEl       = document.getElementById('dm-input');
+const btnSendDm       = document.getElementById('btn-send-dm');
 
-    // ── Connect ───────────────────────────────────────────
-    btnConnect.onclick = () => {
-        username = usernameInput.value.trim();
-        if (!username) { alert('Enter a username first!'); return; }
+// ══════════════════════════════════════════════════════════
+//  LOGIN → CONNECT
+// ══════════════════════════════════════════════════════════
+btnLogin.onclick = doLogin;
+loginUsername.addEventListener('keydown', e => { if (e.key === 'Enter') doLogin(); });
 
-        const socket = new SockJS(serverUrlInput.value.trim());
-        stompClient  = Stomp.over(socket);
-        stompClient.debug = null; // silence debug logs
+function doLogin() {
+    username = loginUsername.value.trim();
+    if (!username) { showToast('Please enter a username', 'error'); return; }
+    const serverUrl = loginServerUrl.value.trim();
+    btnLogin.textContent = 'Connecting…';
+    btnLogin.disabled = true;
 
-        stompClient.connect({}, () => {
-            setConnected(true);
+    const socket = new SockJS(serverUrl);
+    stompClient = Stomp.over(socket);
+    stompClient.debug = null;
+    stompClient.connect({}, onConnected, onError);
+}
 
-            // 1️⃣  Subscribe to public room
-            stompClient.subscribe('/topic/public', (msg) => {
-                const body = JSON.parse(msg.body);
-                renderPublicMessage(body);
-            });
+function onConnected() {
+    loginScreen.style.display = 'none';
+    chatApp.style.display = 'grid';
+    displayUsername.textContent = username;
 
-            // 2️⃣  Subscribe to private queue for this user
-            stompClient.subscribe('/user/queue/private', (msg) => {
-                const body = JSON.parse(msg.body);
-                renderPrivateMessage(body);
-            });
+    // 1. Subscribe to public room
+    subscribeToRoom('public');
 
-            // 3️⃣  Announce join
-            stompClient.send('/app/chat.addUser', {}, JSON.stringify({
-                senderId  : username,
-                recipientId: '',
-                content   : '',
-                type      : 'JOIN'
-            }));
+    // 2. Subscribe to private DM queue
+    stompClient.subscribe('/user/queue/private', msg => {
+        const dm = JSON.parse(msg.body);
+        renderDM(dm, false);
+        showToast('DM from ' + dm.senderId, 'info');
+    });
 
-        }, (error) => {
-            console.error('STOMP error', error);
-            setConnected(false);
+    // 3. Subscribe to online users broadcast
+    stompClient.subscribe('/topic/online-users', msg => {
+        onlineUsers = JSON.parse(msg.body);
+        renderOnlineUsers();
+    });
+
+    // 4. Announce join to public
+    stompClient.send('/app/chat.addUser', {}, JSON.stringify({
+        senderId: username, recipientId: '', content: '', type: 'JOIN'
+    }));
+
+    // 5. Load rooms list from REST
+    loadRoomsFromServer();
+
+    // 6. Load public chat history
+    loadChatHistory('public');
+
+    showToast('Connected as ' + username, 'success');
+}
+
+function onError(err) {
+    console.error('STOMP error', err);
+    showToast('Connection failed! Is the server running?', 'error');
+    btnLogin.textContent = 'Connect & Chat';
+    btnLogin.disabled = false;
+}
+
+// ══════════════════════════════════════════════════════════
+//  DISCONNECT
+// ══════════════════════════════════════════════════════════
+btnDisconnect.onclick = () => {
+    if (stompClient) {
+        stompClient.disconnect(() => {
+            chatApp.style.display = 'none';
+            loginScreen.style.display = 'flex';
+            btnLogin.textContent = 'Connect & Chat';
+            btnLogin.disabled = false;
+            // reset state
+            joinedRooms = new Set(['public']);
+            roomMessages = {}; roomSubs = {}; roomMemberSubs = {}; roomMembers = {};
+            activeRoom = 'public'; onlineUsers = [];
+            messagesContainer.innerHTML = ''; dmMessagesEl.innerHTML = '';
+            stompClient = null;
+            showToast('Disconnected', 'error');
         });
-    };
-
-    // ── Disconnect ────────────────────────────────────────
-    btnDisconnect.onclick = () => {
-        if (stompClient) stompClient.disconnect(() => setConnected(false));
-    };
-
-    // ── Send public message ───────────────────────────────
-    btnSendPublic.onclick = sendPublic;
-    msgInput.addEventListener('keydown', e => { if (e.key === 'Enter') sendPublic(); });
-
-    function sendPublic() {
-        const content = msgInput.value.trim();
-        if (!content || !stompClient) return;
-
-        stompClient.send('/app/chat.sendMessage', {}, JSON.stringify({
-            senderId   : username,
-            recipientId: '',
-            content    : content,
-            type       : 'CHAT'
-        }));
-        msgInput.value = '';
     }
+};
 
-    // ── Send private message ──────────────────────────────
-    btnSendPrivate.onclick = sendPrivate;
-    privateMsgInput.addEventListener('keydown', e => { if (e.key === 'Enter') sendPrivate(); });
+// ══════════════════════════════════════════════════════════
+//  ROOM MANAGEMENT
+// ══════════════════════════════════════════════════════════
+function subscribeToRoom(roomName) {
+    if (roomSubs[roomName]) return;
+    if (!roomMessages[roomName]) roomMessages[roomName] = [];
 
-    function sendPrivate() {
-        const content   = privateMsgInput.value.trim();
-        const recipient = recipientInput.value.trim();
-        if (!content || !recipient || !stompClient) return;
-
-        stompClient.send('/app/chat.privateMessage', {}, JSON.stringify({
-            senderId   : username,
-            recipientId: recipient,
-            content    : content,
-            type       : 'CHAT'
-        }));
-
-        // Show it on sender side too
-        renderPrivateMessage({ senderId: username, recipientId: recipient, content, type: 'CHAT' }, true);
-        privateMsgInput.value = '';
+    if (roomName === 'public') {
+        roomSubs[roomName] = stompClient.subscribe('/topic/public', msg => {
+            const parsed = JSON.parse(msg.body);
+            roomMessages['public'].push(parsed);
+            if (activeRoom === 'public') renderMessage(parsed);
+        });
+    } else {
+        roomSubs[roomName] = stompClient.subscribe('/topic/room/' + roomName, msg => {
+            const parsed = JSON.parse(msg.body);
+            if (!roomMessages[roomName]) roomMessages[roomName] = [];
+            roomMessages[roomName].push(parsed);
+            if (activeRoom === roomName) renderMessage(parsed);
+            else markUnread(roomName);
+        });
+        roomMemberSubs[roomName] = stompClient.subscribe('/topic/room/' + roomName + '/members', msg => {
+            roomMembers[roomName] = new Set(JSON.parse(msg.body));
+            if (activeRoom === roomName) updateMembersBadge(roomName);
+        });
     }
+    joinedRooms.add(roomName);
+    renderRoomList();
+}
 
-    // ── Render helpers ────────────────────────────────────
-    function renderPublicMessage(msg) {
-        const div = document.createElement('div');
+function unsubscribeFromRoom(roomName) {
+    if (roomName === 'public') return;
+    if (stompClient) {
+        stompClient.send('/app/chat.room.leave.' + roomName, {}, JSON.stringify({
+            senderId: username, content: '', type: 'LEAVE'
+        }));
+    }
+    if (roomSubs[roomName]) { roomSubs[roomName].unsubscribe(); delete roomSubs[roomName]; }
+    if (roomMemberSubs[roomName]) { roomMemberSubs[roomName].unsubscribe(); delete roomMemberSubs[roomName]; }
+    joinedRooms.delete(roomName);
+    delete roomMessages[roomName]; delete roomMembers[roomName];
+    if (activeRoom === roomName) switchRoom('public');
+    renderRoomList();
+    showToast('Left #' + roomName, 'error');
+}
 
-        if (msg.type === 'JOIN' || msg.type === 'LEAVE') {
-            div.className = 'msg system';
-            div.textContent = msg.content || `${msg.senderId} ${msg.type === 'JOIN' ? 'joined' : 'left'}`;
-        } else {
-            div.className = 'msg ' + (msg.senderId === username ? 'mine' : 'others');
-            div.innerHTML = `
-                <strong>${msg.senderId}</strong><br/>
-                ${escHtml(msg.content)}
-                <div class="meta">${formatTime(msg.timestamp)}</div>
-            `;
+function switchRoom(roomName) {
+    activeRoom = roomName;
+    const isPublic = roomName === 'public';
+    chatRoomTitle.textContent = (isPublic ? '📢' : '#️⃣') + ' #' + roomName;
+    chatRoomDesc.textContent = isPublic ? 'Public chat room — everyone can see messages' : 'Room #' + roomName;
+    updateMembersBadge(roomName);
+    messagesContainer.innerHTML = '';
+    (roomMessages[roomName] || []).forEach(m => renderMessage(m));
+    chatInput.focus();
+    renderRoomList();
+}
+
+function updateMembersBadge(roomName) {
+    if (roomName === 'public') membersBadge.textContent = onlineUsers.length + ' online';
+    else { const m = roomMembers[roomName]; membersBadge.textContent = (m ? m.size : 0) + ' members'; }
+}
+
+function markUnread(roomName) {
+    const item = document.querySelector('.room-item[data-room="' + roomName + '"]');
+    if (item && !item.querySelector('.unread')) {
+        const b = document.createElement('span'); b.className = 'unread'; b.textContent = '•';
+        item.appendChild(b);
+    }
+}
+
+// Join room button
+btnJoinRoom.onclick = () => {
+    const name = newRoomInput.value.trim().toLowerCase().replace(/[^a-z0-9\-_]/g, '');
+    if (!name || !stompClient) return;
+    subscribeToRoom(name);
+    stompClient.send('/app/chat.room.join.' + name, {}, JSON.stringify({ senderId: username, content: '', type: 'JOIN' }));
+    loadChatHistory(name);
+    switchRoom(name);
+    newRoomInput.value = '';
+    showToast('Joined #' + name, 'success');
+};
+
+// Create room via REST then join
+btnCreateRoom.onclick = () => {
+    const name = newRoomInput.value.trim().toLowerCase().replace(/[^a-z0-9\-_]/g, '');
+    if (!name || !stompClient) return;
+    fetch('/api/chat/rooms', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: name, description: '', createdBy: username })
+    }).then(r => r.json()).then(() => {
+        subscribeToRoom(name);
+        stompClient.send('/app/chat.room.join.' + name, {}, JSON.stringify({ senderId: username, content: '', type: 'JOIN' }));
+        switchRoom(name);
+        newRoomInput.value = '';
+        showToast('Created & joined #' + name, 'success');
+    }).catch(() => showToast('Error creating room', 'error'));
+};
+
+newRoomInput.addEventListener('keydown', e => { if (e.key === 'Enter') btnJoinRoom.click(); });
+
+function loadRoomsFromServer() {
+    fetch('/api/chat/rooms').then(r => r.json()).then(rooms => {
+        rooms.forEach(room => {
+            if (room.name && room.name !== 'public') {
+                // Show available rooms — user can click to join
+            }
+        });
+    }).catch(() => {});
+}
+
+// ══════════════════════════════════════════════════════════
+//  SEND MESSAGES
+// ══════════════════════════════════════════════════════════
+btnSend.onclick = sendMessage;
+chatInput.addEventListener('keydown', e => { if (e.key === 'Enter') sendMessage(); });
+
+function sendMessage() {
+    const content = chatInput.value.trim();
+    if (!content || !stompClient) return;
+    if (activeRoom === 'public') {
+        stompClient.send('/app/chat.sendMessage', {}, JSON.stringify({ senderId: username, recipientId: '', content, type: 'CHAT' }));
+    } else {
+        stompClient.send('/app/chat.room.send.' + activeRoom, {}, JSON.stringify({ senderId: username, content, type: 'CHAT' }));
+    }
+    chatInput.value = '';
+    chatInput.focus();
+}
+
+// ══════════════════════════════════════════════════════════
+//  DIRECT MESSAGES
+// ══════════════════════════════════════════════════════════
+btnSendDm.onclick = sendDM;
+dmInputEl.addEventListener('keydown', e => { if (e.key === 'Enter') sendDM(); });
+
+function sendDM() {
+    const content = dmInputEl.value.trim();
+    const recipient = dmRecipientEl.value.trim();
+    if (!content || !recipient || !stompClient) return;
+    stompClient.send('/app/chat.privateMessage', {}, JSON.stringify({
+        senderId: username, recipientId: recipient, content, type: 'CHAT'
+    }));
+    renderDM({ senderId: username, recipientId: recipient, content, type: 'CHAT' }, true);
+    dmInputEl.value = '';
+}
+
+function setDMRecipient(user) { dmRecipientEl.value = user; dmInputEl.focus(); }
+
+// ══════════════════════════════════════════════════════════
+//  CHAT HISTORY (REST API)
+// ══════════════════════════════════════════════════════════
+function loadChatHistory(roomId) {
+    fetch('/api/chat/history/' + roomId).then(r => r.json()).then(messages => {
+        if (!roomMessages[roomId]) roomMessages[roomId] = [];
+        const existingIds = new Set(roomMessages[roomId].map(m => m.id).filter(Boolean));
+        const newMsgs = messages.filter(m => !existingIds.has(m.id));
+        roomMessages[roomId] = [...newMsgs, ...roomMessages[roomId]];
+        if (activeRoom === roomId) {
+            messagesContainer.innerHTML = '';
+            roomMessages[roomId].forEach(m => renderMessage(m));
         }
+    }).catch(() => {});
+}
 
-        messagesEl.appendChild(div);
-        messagesEl.scrollTop = messagesEl.scrollHeight;
+// ══════════════════════════════════════════════════════════
+//  RENDER FUNCTIONS
+// ══════════════════════════════════════════════════════════
+function renderMessage(msg) {
+    const div = document.createElement('div');
+    if (msg.type === 'JOIN' || msg.type === 'LEAVE') {
+        div.className = 'msg-system';
+        div.textContent = msg.content || (msg.senderId + (msg.type === 'JOIN' ? ' joined' : ' left'));
+    } else {
+        const isMine = msg.senderId === username;
+        div.className = 'msg-bubble ' + (isMine ? 'mine' : 'others');
+        div.innerHTML = '<div class="sender">' + esc(msg.senderId) + '</div>' +
+            esc(msg.content) + '<div class="time">' + formatTime(msg.timestamp) + '</div>';
     }
+    messagesContainer.appendChild(div);
+    messagesContainer.scrollTop = messagesContainer.scrollHeight;
+}
 
-    function renderPrivateMessage(msg, isSent = false) {
-        const div = document.createElement('div');
-        div.className = 'msg ' + (isSent ? 'mine' : 'others');
-        div.innerHTML = `
-            <strong>${isSent ? 'You → ' + msg.recipientId : msg.senderId}</strong><br/>
-            ${escHtml(msg.content)}
-            <div class="meta">${formatTime(msg.timestamp)}</div>
-        `;
-        privateMessagesEl.appendChild(div);
-        privateMessagesEl.scrollTop = privateMessagesEl.scrollHeight;
+function renderDM(msg, isSent) {
+    const div = document.createElement('div');
+    div.className = 'dm-msg' + (isSent ? ' dm-sent' : '');
+    div.innerHTML = '<div class="dm-sender">' +
+        (isSent ? 'You → ' + esc(msg.recipientId) : esc(msg.senderId)) +
+        '</div>' + esc(msg.content);
+    dmMessagesEl.appendChild(div);
+    dmMessagesEl.scrollTop = dmMessagesEl.scrollHeight;
+}
+
+function renderOnlineUsers() {
+    onlineCountEl.textContent = onlineUsers.length;
+    if (!onlineUsers.length) {
+        onlineListEl.innerHTML = '<div style="padding:16px;text-align:center;color:var(--text-muted);font-size:0.8rem;">No users online</div>';
+        return;
     }
+    onlineListEl.innerHTML = onlineUsers.map(u =>
+        '<div class="user-item ' + (u === username ? 'is-you' : '') + '" onclick="setDMRecipient(\'' + esc(u) + '\')">' +
+        '<span class="user-dot"></span>' + esc(u) + (u === username ? ' <small>(you)</small>' : '') + '</div>'
+    ).join('');
+    if (activeRoom === 'public') membersBadge.textContent = onlineUsers.length + ' online';
+}
 
-    // ── UI state helpers ──────────────────────────────────
-    function setConnected(connected) {
-        btnConnect.disabled    =  connected;
-        btnDisconnect.disabled = !connected;
-        btnSendPublic.disabled = !connected;
-        btnSendPrivate.disabled= !connected;
-        msgInput.disabled      = !connected;
-        privateMsgInput.disabled=!connected;
-        recipientInput.disabled= !connected;
+function renderRoomList() {
+    let html = '<div class="room-item ' + (activeRoom === 'public' ? 'active' : '') + '" data-room="public" onclick="switchRoom(\'public\')">' +
+        '<span class="room-icon">📢</span><span class="room-name">public</span></div>';
+    joinedRooms.forEach(room => {
+        if (room === 'public') return;
+        html += '<div class="room-item ' + (activeRoom === room ? 'active' : '') + '" data-room="' + esc(room) + '" onclick="switchRoom(\'' + esc(room) + '\')">' +
+            '<span class="room-icon">#️⃣</span><span class="room-name">' + esc(room) + '</span>' +
+            '<span class="leave-x" onclick="event.stopPropagation();unsubscribeFromRoom(\'' + esc(room) + '\')" title="Leave room">✕</span></div>';
+    });
+    roomListEl.innerHTML = html;
+}
 
-        statusEl.textContent = connected ? '● Connected as ' + username : '● Disconnected';
-        statusEl.className   = connected ? 'connected' : 'disconnected';
-    }
-
-    function formatTime(ts) {
-        if (!ts) return new Date().toLocaleTimeString();
-        return new Date(ts).toLocaleTimeString();
-    }
-
-    function escHtml(str = '') {
-        return str.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
-    }
+// ══════════════════════════════════════════════════════════
+//  UTILITIES
+// ══════════════════════════════════════════════════════════
+function formatTime(ts) {
+    if (!ts) return new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    return new Date(ts).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+}
+function esc(str) {
+    if (!str) return '';
+    return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+function showToast(message, type) {
+    const t = document.createElement('div'); t.className = 'toast ' + (type || 'info');
+    t.textContent = message; document.body.appendChild(t); setTimeout(() => t.remove(), 3200);
+}
 </script>
-
 </body>
 </html>
-
